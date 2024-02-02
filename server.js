@@ -27,6 +27,8 @@ app.post('/upload', upload.single('file'), async (req, res) => {
     const fileHash = await generateFileHash(req.file.path);
 
     if (checkFileHashInDatabase(fileHash)) {
+        // File already exists, so delete the uploaded file
+        fs.unlinkSync(req.file.path);
         return res.status(409).send('File already uploaded');
     }
 
@@ -34,6 +36,7 @@ app.post('/upload', upload.single('file'), async (req, res) => {
 
     res.json({ message: 'File uploaded successfully', fileHash: fileHash });
 });
+
 
 
 app.listen(3000, () => console.log('Server started on port 3000'));
@@ -96,7 +99,7 @@ const setup = () => {
         processFiles(uploadsDirectory).then(() => {
             console.log('Processed files in the uploads directory');
         });
-        
+
     } catch (error) {
         console.log(error);
     }
