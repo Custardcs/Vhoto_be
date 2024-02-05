@@ -1,0 +1,27 @@
+//- selectDirectory.pug
+doctype html
+html
+  style.
+    body {background-color: #222}
+    h1 {color: #fff}
+    form > input {
+      border: solid 1px #fff;
+      border-radius: 5px;
+      padding: 5px;
+      width: calc(75vw - 20px);
+      margin: 2px;
+    }
+    form > button {
+      border: solid 1px #fff;
+      border-radius: 5px;
+      padding: 5px;
+      width: calc(25vw - 20px);
+      margin: 2px;
+    }
+  head
+    title Select Upload Directory
+  body
+    h1 Select New Upload Directory
+    form(action="/select-directory", method="POST")
+      input(type="text", name="newDirectory", required=true, placeholder=_url)
+      button(type="submit") Save Directory

@@ -5,8 +5,16 @@ const path = require('path');
 const fs = require('fs');
 const app = express();
 const Database = require('better-sqlite3');
+require('dotenv').config();
 
-const uploadsDirectory = path.join(__dirname, 'uploads');
+//engine
+app.set('view engine', 'pug');
+//folder allowed to view.
+app.set('views', path.join(__dirname, 'pugview'));
+// Add this line before your route definitions
+app.use(express.urlencoded({ extended: true }));
+
+const uploadsDirectory = process.env.UPLOADS_DIRECTORY || path.join(__dirname, 'uploads');
 
 const db = new Database('filehashes.db', { verbose: console.log });
 // Configure multer
@@ -21,7 +29,9 @@ const storage = multer.diskStorage({
 
 const upload = multer({ storage: storage });
 app.all('/', (req, res) => {
-    res.send('hello world');
+    res.render('index', {
+        _url: uploadsDirectory
+    });
 })
 app.post('/upload', upload.single('file'), async (req, res) => {
     const fileHash = await generateFileHash(req.file.path);
@@ -35,6 +45,20 @@ app.post('/upload', upload.single('file'), async (req, res) => {
     insertFileHash(fileHash, req.file.originalname);
 
     res.json({ message: 'File uploaded successfully', fileHash: fileHash });
+});
+
+
+// Handle directory selection form submission
+app.post('/select-directory', (req, res) => {
+
+    const newDirectory = req["body"]["newDirectory"];
+    // Update environment variable
+    process.env.UPLOADS_DIRECTORY = newDirectory;
+    // Save the new directory to an .env file
+    const envContent = `UPLOADS_DIRECTORY=${newDirectory}\n`;
+    fs.writeFileSync(path.join(__dirname, '.env'), envContent, 'utf-8');
+
+    res.send('Upload directory updated successfully');
 });
 
 
