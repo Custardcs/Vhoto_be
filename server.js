@@ -14,8 +14,17 @@ app.set("views", path.join(__dirname, "pugview"));
 // Add this line before your route definitions
 app.use(express.urlencoded({ extended: true }));
 
-const uploadsDirectory =
-  process.env.UPLOADS_DIRECTORY || path.join(__dirname, "uploads");
+// Define the uploads directory path
+const uploadsDirectory = process.env.UPLOADS_DIRECTORY || path.join(__dirname, "uploads");
+
+// Check if the uploads directory exists, and if not, create it
+if (!fs.existsSync(uploadsDirectory)) {
+  fs.mkdirSync(uploadsDirectory, { recursive: true });
+  console.log('Uploads directory created:', uploadsDirectory);
+} else {
+  console.log('Uploads directory already exists:', uploadsDirectory);
+}
+
 
 const db = new Database("filehashes.db", { verbose: console.log });
 // Configure multer
