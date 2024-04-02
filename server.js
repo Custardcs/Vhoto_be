@@ -44,21 +44,23 @@ const upload = multer({ storage: storage });
 app.all("/", (req, res) => {
   res.render("index", {
     _url: uploadsDirectory,
+    _ip: 'xxx.xxx.xxx.xxx'
   });
 });
 app.post("/upload", upload.single("file"), async (req, res) => {
   try {
+    console.log('upload - YAY')
     const fileHash = await generateFileHash(req.file.path);
 
     if (checkFileHashInDatabase(fileHash)) {
       // File already exists, so delete the uploaded file
       fs.unlinkSync(req.file.path);
-      return res.status(409).send("File already uploaded");
+      return res.status(409).json({message: "File already uploaded"});
     }
 
     insertFileHash(fileHash, req.file.originalname);
 
-    res.json({ message: "File uploaded successfully", fileHash: fileHash });
+    res.status(200).json({ message: "File uploaded successfully", fileHash: fileHash });
   } catch (err) {
     console.error(err);
   }
@@ -80,7 +82,7 @@ app.post("/select-directory", (req, res) => {
   }
 });
 
-app.listen(3000, () => console.log("Server started on port 3000"));
+app.listen(5489, () => console.log("Server started on port 5489"));
 
 function checkFileHashInDatabase(fileHash) {
   try {
