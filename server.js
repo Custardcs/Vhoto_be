@@ -154,7 +154,7 @@ const setup = () => {
     db.prepare(table).run();
 
     processFiles(uploadsDirectory).then(() => {
-      console.log("Processed files in the uploads directory");
+      console.log("setup - Processed files in the uploads directory");
     });
   } catch (err) {
     console.log(err);
