@@ -7,30 +7,30 @@ const app = express();
 const Database = require("better-sqlite3");
 require("dotenv").config();
 
-//engine
+// Set up the view engine and views folder
 app.set("view engine", "pug");
-//folder allowed to view.
 app.set("views", path.join(__dirname, "pugview"));
-// Add this line before your route definitions
 app.use(express.urlencoded({ extended: true }));
 
 // Define the uploads directory path
-const uploadsDirectory = process.env.UPLOADS_DIRECTORY || path.join(__dirname, "uploads");
+const uploadsDirectory =
+  process.env.UPLOADS_DIRECTORY || path.join(__dirname, "uploads");
 
 // Check if the uploads directory exists, and if not, create it
 if (!fs.existsSync(uploadsDirectory)) {
   fs.mkdirSync(uploadsDirectory, { recursive: true });
-  console.log('Uploads directory created:', uploadsDirectory);
+  console.log("Uploads directory created:", uploadsDirectory);
 } else {
-  console.log('Uploads directory already exists:', uploadsDirectory);
+  console.log("Uploads directory already exists:", uploadsDirectory);
 }
 
-
+// Initialize the SQLite database
 const db = new Database("filehashes.db", { verbose: console.log });
+
 // Configure multer
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
-    cb(null, "uploads/");
+    cb(null, uploadsDirectory); // Use the defined uploads directory
   },
   filename: function (req, file, cb) {
     cb(
@@ -41,49 +41,62 @@ const storage = multer.diskStorage({
 });
 
 const upload = multer({ storage: storage });
+
+// Route to render the index page
 app.all("/", (req, res) => {
   res.render("index", {
     _url: uploadsDirectory,
-    _ip: 'xxx.xxx.xxx.xxx'
+    _ip: req.ip,
   });
 });
+
+// Route to handle file upload
 app.post("/upload", upload.single("file"), async (req, res) => {
   try {
-    console.log('upload - YAY')
     const fileHash = await generateFileHash(req.file.path);
 
     if (checkFileHashInDatabase(fileHash)) {
       // File already exists, so delete the uploaded file
       fs.unlinkSync(req.file.path);
-      return res.status(409).json({message: "File already uploaded"});
+      return res.status(409).json({ message: "File already uploaded" });
     }
 
     insertFileHash(fileHash, req.file.originalname);
-
-    res.status(200).json({ message: "File uploaded successfully", fileHash: fileHash });
+    res
+      .status(200)
+      .json({ message: "File uploaded successfully", fileHash: fileHash });
   } catch (err) {
     console.error(err);
+    res.status(500).json({ message: "Internal Server Error" });
   }
 });
 
-// Handle directory selection form submission
+// Route to handle directory selection form submission
 app.post("/select-directory", (req, res) => {
   try {
-    const newDirectory = req["body"]["newDirectory"];
+    const newDirectory = req.body.newDirectory;
+
     // Update environment variable
     process.env.UPLOADS_DIRECTORY = newDirectory;
+
     // Save the new directory to an .env file
-    const envContent = `UPLOADS_DIRECTORY=${newDirectory}\n`;
-    fs.writeFileSync(path.join(__dirname, ".env"), envContent, "utf-8");
+    fs.writeFileSync(
+      path.join(__dirname, ".env"),
+      `UPLOADS_DIRECTORY=${newDirectory}\n`,
+      "utf-8"
+    );
 
     res.send("Upload directory updated successfully");
   } catch (err) {
     console.error(err);
+    res.status(500).json({ message: "Internal Server Error" });
   }
 });
 
+// Start the server
 app.listen(5489, () => console.log("Server started on port 5489"));
 
+// Function to check if a file hash exists in the database
 function checkFileHashInDatabase(fileHash) {
   try {
     const stmt = db.prepare("SELECT hash FROM files WHERE hash = ?");
@@ -91,8 +104,11 @@ function checkFileHashInDatabase(fileHash) {
     return result !== undefined;
   } catch (err) {
     console.error(err);
+    return false;
   }
 }
+
+// Function to insert a file hash into the database
 function insertFileHash(fileHash, filename) {
   try {
     const stmt = db.prepare("INSERT INTO files (hash, filename) VALUES (?, ?)");
@@ -101,23 +117,19 @@ function insertFileHash(fileHash, filename) {
     console.error(err);
   }
 }
+
+// Function to generate a SHA-256 hash of a file
 function generateFileHash(filePath) {
-  try {
-    return new Promise((resolve, reject) => {
-      let hash = crypto.createHash("sha256");
-      let stream = fs.createReadStream(filePath);
-      stream.on("data", function (data) {
-        hash.update(data, "utf8");
-      });
-      stream.on("end", function () {
-        resolve(hash.digest("hex"));
-      });
-      stream.on("error", reject);
-    });
-  } catch (err) {
-    console.error(err);
-  }
+  return new Promise((resolve, reject) => {
+    const hash = crypto.createHash("sha256");
+    const stream = fs.createReadStream(filePath);
+    stream.on("data", (data) => hash.update(data));
+    stream.on("end", () => resolve(hash.digest("hex")));
+    stream.on("error", reject);
+  });
 }
+
+// Function to get a list of files from a directory
 function getFilesFromDirectory(directory) {
   try {
     return fs
@@ -125,8 +137,11 @@ function getFilesFromDirectory(directory) {
       .filter((file) => fs.statSync(path.join(directory, file)).isFile());
   } catch (err) {
     console.error(err);
+    return [];
   }
 }
+
+// Function to process files in a directory and add their hashes to the database
 async function processFiles(directory) {
   try {
     const files = getFilesFromDirectory(directory);
@@ -143,7 +158,7 @@ async function processFiles(directory) {
   }
 }
 
-// Run this once to set up the table
+// Run this once to set up the table and process existing files in the uploads directory
 const setup = () => {
   try {
     const table = `
